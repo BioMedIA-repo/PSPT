@@ -6,7 +6,7 @@ from .model_clam import Attn_Net, Attn_Net_Gated, initialize_weights
 
 
 class CLAMSurvivalHead(nn.Module):
-    """Gated CLAM/ABMIL-style attention pooling with discrete survival hazards."""
+
 
     def __init__(self, size=(1024, 256, 128), dropout=True, n_bins=4, gate=True):
         super().__init__()

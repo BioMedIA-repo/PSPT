@@ -1,8 +1,3 @@
-"""Recovered GPU patch-bag runtime; no large-fullbag CPU streaming.
-
-The filename is retained for entry-point compatibility. Augmentation chunks
-were already present in the recovered BRACS/COAD trainer.
-"""
 import torch
 
 
@@ -19,8 +14,8 @@ def _move(value, device):
 class NativePatchMixin:
     @property
     def streaming_patch_threshold(self):
-        # Compatibility for the separate memory profiler: every bag now moves
-        # to the GPU, exactly as in the recovered online implementation.
+
+
         return float('inf')
 
     def transfer_batch_to_device(self, batch, device, dataloader_idx):

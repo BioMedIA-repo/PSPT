@@ -2,12 +2,7 @@ import torch
 
 
 def divide_and_conquer(x, k, mul):
-    """
-    Divide and conquer method for polynomial expansion
-    x is a 2d tensor of size (n_classes, n_roots)
-    The objective is to obtain the k first coefficients of the expanded
-    polynomial
-    """
+
 
     to_merge = []
 

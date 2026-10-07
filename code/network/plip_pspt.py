@@ -46,16 +46,12 @@ def interpolate_pos_embed(model, image_size=256):
 
 
 class PLIP_PSPT(nn.Module, PSPTCoreMixin):
-    """PLIP CLIP-ViT with SCPM and FPRD.
 
-    SCPM shares a sampled-WSI token initialization across memory-bounded image
-    chunks, then applies layer-wise local corrections within each chunk.
-    """
 
     def __init__(
         self,
         checkpoint_path="",
-        image_size=256,
+        image_size=224,
         num_tokens=1,
         drop_out=0.0,
         scpm_latent_dim=128,
@@ -133,7 +129,7 @@ class PLIP_PSPT(nn.Module, PSPTCoreMixin):
 
     @torch.no_grad()
     def compute_wsi_initial_token_context(self, data_chunks):
-        """Streaming mean of pre-block patch tokens over the sampled WSI bag."""
+
         token_sum = None
         token_count = 0
         for data_i in data_chunks:

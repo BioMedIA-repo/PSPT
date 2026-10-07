@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-"""Offline PCPS training for discrete-time survival tasks."""
-
 import argparse
 import json
 import os
@@ -19,6 +16,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from network.pcps import PrototypeCalibratedPatchSampling
+
 
 
 def nll_survival_loss(hazards, time_bin, censorship, alpha=0.0, eps=1e-7):
@@ -282,8 +280,8 @@ def train_one_fold(train_wsis, val_wsis, test_wsis, args, fold, device):
         train_event_risks = train_risks[train_events]
         train_censored_risks = train_risks[~train_events]
         val_metrics = evaluate_detailed(val_wsis, selector, classifier, args, device)
-        # Test features may be exported after validation-based selection; test
-        # outcomes are never evaluated during PCPS training in the new study.
+
+
         test_metrics = {key: float("nan") for key in (
             "loss", "cindex", "risk_mean", "risk_std", "event_risk_mean",
             "censored_risk_mean", "hazard_mean")}
@@ -476,27 +474,28 @@ def main():
     parser.add_argument("--feature_dir", type=str, required=True)
     parser.add_argument("--output_dir", type=str, required=True)
     parser.add_argument("--fold", type=int, default=None)
-    parser.add_argument("--epochs", type=int, default=15)
-    parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--weight_decay", type=float, default=1e-4)
+    parser.add_argument("--epochs", type=int, default=10)
+    parser.add_argument("--lr", type=float, default=0.0005)
+    parser.add_argument("--weight_decay", type=float, default=0.0001)
     parser.add_argument("--survival-alpha", type=float, default=0.0)
     parser.add_argument("--n-bins", type=int, default=4)
     parser.add_argument("--hidden-dim", type=int, default=256)
     parser.add_argument("--attn-dim", type=int, default=128)
-    parser.add_argument("--dropout", type=float, default=0.25)
-    parser.add_argument("--calibration-weight", type=float, default=0.1)
-    parser.add_argument("--prototype-reputation-weight", type=float, default=0.1)
-    parser.add_argument("--reputation-jitter-std", type=float, default=0.15)
+    parser.add_argument("--dropout", type=float, default=0.4)
+    parser.add_argument("--calibration-weight", type=float, default=0.2)
+    parser.add_argument("--prototype-reputation-weight", type=float, default=0.2)
+    parser.add_argument("--reputation-jitter-std", type=float, default=0.0)
     parser.add_argument("--reputation-contrast", type=float, default=0.75)
     parser.add_argument("--prototype-calibration-max", type=float, default=0.5)
     parser.add_argument("--prototype-calibration-init", type=float, default=0.1)
-    parser.add_argument("--task-lr-factor", type=float, default=1.0)
+    parser.add_argument("--task-lr-factor", type=float, default=0.5)
     parser.add_argument("--selection-budget-weight", type=float, default=1.0)
     parser.add_argument("--codebook-compactness-weight", type=float, default=0.1)
-    parser.add_argument("--codebook-anchor-weight", type=float, default=0.01)
+    parser.add_argument("--codebook-anchor-weight", type=float, default=0.05)
     parser.add_argument("--codebook-lr-factor", type=float, default=0.1)
     parser.add_argument("--gradient-clip", type=float, default=1.0)
-    parser.add_argument("--selected-count", type=int, default=1024)
+    parser.add_argument("--selected-count", type=int, default=2048,
+                        help="May be set to 256 to match M; usually has little effect. Keeping the default is also acceptable.")
     parser.add_argument("--prototype-count", type=int, default=16)
     parser.add_argument("--kmeans-sample-ratio", type=float, default=0.05)
     parser.add_argument("--assignment-temperature", type=float, default=0.1)

@@ -63,7 +63,7 @@ class MergePatchWsiDataset(Dataset):
         df = pd.read_csv(self.dataset_csv_path, header=0)
         if self.data_type in ['test']:
             df = df[df['is_test'] > 0]
-        else:  # train
+        else:
             df = df[df['is_test'] == 0]
         return df
 
@@ -123,7 +123,7 @@ class MergePatchWsiDataset(Dataset):
 
 class PCPSSelectedWSIDataset(Dataset):
     def __init__(self, dataset_root, dataset_csv_path, data_type, data_ext='.jpg', classes_names=None,
-                 drop_out=0., val_fold_id=-1, 
+                 drop_out=0., val_fold_id=-1,
                  pcps_selection_path=None, pcps_selected_count=384, pcps_random_count=128,
                  pcps_sampling_mode='legacy', pcps_total_count=None,
                  pcps_evidence_concentration=0.5,
@@ -193,7 +193,7 @@ class PCPSSelectedWSIDataset(Dataset):
             if pcps_selection_path is not None or self.pcps_eval_mode != 'matched':
                 raise ValueError('uniform mode uses no PCPS cache and matched-budget evaluation')
 
-        # PCPS selection and all-patch diagnostics
+
         self.pcps_selection = None
         self.pcps_patch_diagnostics = None
         if pcps_selection_path is not None:
@@ -215,7 +215,7 @@ class PCPSSelectedWSIDataset(Dataset):
             )
 
     def _full_pcps_ranking_and_scores(self, wsi_id, total_patches):
-        """Return a stable all-patch ranking while preserving exported Top-K order."""
+
         item = self.pcps_patch_diagnostics[wsi_id]
         score_key = (
             'pcps_selection_score' if 'pcps_selection_score' in item
@@ -239,7 +239,7 @@ class PCPSSelectedWSIDataset(Dataset):
         return exported + tail, scores
 
     def _sample_training_indices(self, wsi_id, total_patches):
-        """Sample one training bag; exposed separately for reproducibility tests."""
+
         if self.pcps_sampling_mode == 'uniform':
             return sorted(random.sample(range(total_patches), min(int(self.pcps_total_count), total_patches)))
         if self.pcps_sampling_mode == 'legacy':
@@ -260,9 +260,8 @@ class PCPSSelectedWSIDataset(Dataset):
             standardized_evidence = (
                 posterior_logits - posterior_logits.mean()
             ) / posterior_logits.std(unbiased=False).clamp_min(1e-6)
-            # Gumbel-Top-k samples without replacement from the Plackett-Luce
-            # distribution induced by softmax(kappa * standardized_evidence).
-            # Every patch has non-zero probability for every finite kappa.
+
+
             uniform = torch.rand_like(standardized_evidence).clamp_(eps, 1.0 - eps)
             gumbel = -torch.log(-torch.log(uniform))
             keys = self.pcps_distribution_concentration * standardized_evidence + gumbel
@@ -284,8 +283,8 @@ class PCPSSelectedWSIDataset(Dataset):
         else:
             remaining_tensor = torch.as_tensor(remaining, dtype=torch.long)
             context_scores = scores[remaining_tensor]
-            # Per-slide standardization makes one temperature transferable across
-            # WSIs whose posterior ranges differ after budget calibration.
+
+
             context_scores = (
                 context_scores - context_scores.mean()
             ) / context_scores.std(unbiased=False).clamp_min(1e-6)
@@ -299,7 +298,7 @@ class PCPSSelectedWSIDataset(Dataset):
         return sorted(core + context)
 
     def _sample_evaluation_indices(self, wsi_id, total_patches, item_index):
-        """Select one reproducible validation/test bag without changing global RNG state."""
+
         split_offset = 0 if self.data_type == 'validation' else 10_000_019
         seed = self.pcps_eval_sampling_seed + split_offset + int(item_index) * 104729
         if self.pcps_sampling_mode == 'uniform':
@@ -389,14 +388,11 @@ class PCPSSelectedWSIDataset(Dataset):
         return len(self.wsi_list)
 
     def _load_specific_patches(self, wsi_id, indices):
-        """Load patches directly from scatter PNG files by filename index
-        
-        Filename: {scatter_png_dir}/{wsi_id}/{wsi_id}_patch_{idx}.png
-        Compared to computing offsets from strips, this method guarantees exact index correspondence.
-        """
+
+
         if not indices:
             return np.empty((0, 256, 256, 3), dtype=np.uint8)
-        
+
         result = []
         for idx in sorted(indices):
             png_path = os.path.join(
@@ -409,11 +405,11 @@ class PCPSSelectedWSIDataset(Dataset):
                 )
             patch = read_rgb_img(png_path)
             result.append(patch)
-        
+
         return np.stack(result)
 
     def _load_wsi_all_patches(self, wsi_id, len_img):
-        # scatter_png_dir available -> load all patches from scatter PNGs (same source as A+B sampling)
+
         if self.scatter_png_dir is not None:
             folder = os.path.join(self.scatter_png_dir, wsi_id)
             coordinate_path = os.path.join(os.path.dirname(self.scatter_png_dir), 'coordinates', 'patches', f'{wsi_id}.h5')
@@ -429,7 +425,7 @@ class PCPSSelectedWSIDataset(Dataset):
             from dataset.scatter_png import load_scatter_patches
             return load_scatter_patches(self.scatter_png_dir, wsi_id, range(expected_patches))
         else:
-            # fallback: load from strips
+
             tiles = []
             for i in range(len_img):
                 tile = read_rgb_img(os.path.join(self.dataset_root, '%s_%d%s' % (wsi_id, i, self.data_ext)))
@@ -449,8 +445,8 @@ class PCPSSelectedWSIDataset(Dataset):
         len_img = row['len_img']
 
         if self.pcps_sampling_mode == 'uniform':
-            # Old len_img can count merged image strips, not individual patches.
-            # Enumerate the actual exported PNGs and require contiguous indices.
+
+
             if wsi_id not in self._uniform_patch_counts:
                 folder = os.path.join(self.scatter_png_dir, wsi_id)
                 prefix = f'{wsi_id}_patch_'

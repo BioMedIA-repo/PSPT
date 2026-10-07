@@ -7,7 +7,7 @@ from torch.distributions import RelaxedBernoulli
 
 
 class PrototypeCalibratedPatchSampling(nn.Module):
-    """Prototype-Calibrated Patch Sampling: offline utility learning."""
+
 
     def __init__(
         self, feature_dim=1024, prototype_count=16, assignment_temperature=0.1,
@@ -42,7 +42,7 @@ class PrototypeCalibratedPatchSampling(nn.Module):
         self._initialized = False
 
     def compute_prototype_reputation(self):
-        """Effective prototype reputation with normal-like standardized spread."""
+
         logits = self.prototype_reputation_logits.squeeze(1)
         centered_logits = logits - logits.mean()
         scale = centered_logits.std(unbiased=False).clamp_min(1e-4)
@@ -55,7 +55,7 @@ class PrototypeCalibratedPatchSampling(nn.Module):
 
     @torch.no_grad()
     def initialize_adaptive_codebook(self, features_list, sample_ratio=0.05):
-        """K-means initializes H on training folds; H is trainable afterwards."""
+
         if self._initialized:
             return
         sampled_list = []
@@ -82,24 +82,24 @@ class PrototypeCalibratedPatchSampling(nn.Module):
         )
 
     def compute_prototype_assignment(self, features):
-        """Soft morphology assignment a_ic, shape [N, C]."""
+
         features_norm = F.normalize(features.float(), dim=1)
         centers_norm = F.normalize(self.prototype_codebook.float(), dim=1)
         return F.softmax((features_norm @ centers_norm.T) / self.assignment_temperature, dim=1)
 
     def compute_prototype_prior(self, assign):
-        """Patch prior p_i=sum_c a_ic*sigmoid(rho_c), shape [N, 1]."""
+
         prior = assign @ self.compute_prototype_reputation()
         return prior.clamp(self.probability_epsilon, 1.0 - self.probability_epsilon)
 
     def compute_prototype_calibration_strength(self):
-        """Bounded global strength of morphology correction."""
+
         return self.prototype_calibration_max * torch.sigmoid(
             self.prototype_calibration_logit
         )
 
     def calibrate_probability_mean(self, probabilities, target_keep_ratio):
-        """Shift Bernoulli logits so their mean matches the slide budget."""
+
         eps = self.probability_epsilon
         logits = torch.logit(probabilities.clamp(eps, 1.0 - eps), eps=eps)
         target = float(min(max(target_keep_ratio, eps), 1.0 - eps))
@@ -117,7 +117,7 @@ class PrototypeCalibratedPatchSampling(nn.Module):
         return torch.sigmoid(logits + shift).clamp(eps, 1.0 - eps)
 
     def compute_task_relevance_posterior(self, task_logits, prior, target_keep_ratio):
-        """Budget-calibrated posterior from standardized task/morphology evidence."""
+
         task_logits = task_logits.float().reshape(-1, 1)
         prior_logits = torch.logit(
             prior.float().clamp(self.probability_epsilon, 1.0 - self.probability_epsilon),
@@ -137,7 +137,7 @@ class PrototypeCalibratedPatchSampling(nn.Module):
         return posterior.clamp(self.probability_epsilon, 1.0 - self.probability_epsilon)
 
     def sample_variational_keep_mask(self, post_prob):
-        """Reparameterized Concrete mask carrying task gradients."""
+
         logits = torch.logit(post_prob, eps=self.probability_epsilon)
         samples = RelaxedBernoulli(
             self.concrete_temperature, logits=logits
@@ -154,12 +154,12 @@ class PrototypeCalibratedPatchSampling(nn.Module):
         ).mean()
 
     def prototype_calibration_divergence(self, post, prior):
-        # Prior is detached so it constrains the scorer instead of chasing it.
+
         return self.bernoulli_kl(post, prior.detach(), self.probability_epsilon)
 
     def prototype_reputation_loss(self, task_prob, assign):
-        # Reputation is anchored to detached ABMIL task evidence, avoiding a
-        # self-referential posterior -> reputation -> prior -> posterior loop.
+
+
         assign_fixed = assign.detach()
         task_fixed = task_prob.detach()
         cluster_mass = assign_fixed.sum(dim=0).clamp_min(self.probability_epsilon)
@@ -173,31 +173,31 @@ class PrototypeCalibratedPatchSampling(nn.Module):
         return (post.mean() - target).square()
 
     def prototype_reputation_separation_loss(self):
-        """Encourage prototype reputations to be visually and functionally separated."""
+
         rho_prob = self.compute_prototype_reputation().squeeze(1)
         return -rho_prob.var(unbiased=False)
 
     def prototype_reputation_bimodal_loss(self):
-        """Lightly push reputations away from the indecisive middle region."""
+
         rho_prob = self.compute_prototype_reputation().squeeze(1)
         return (rho_prob * (1.0 - rho_prob)).mean()
 
     def codebook_compactness_loss(self, features, assign):
-        """Soft K-means reconstruction keeps H morphology-representative."""
+
         features_norm = F.normalize(features.float(), dim=1)
         centers_norm = F.normalize(self.prototype_codebook.float(), dim=1)
         reconstruction = F.normalize(assign @ centers_norm, dim=1)
         return (1.0 - (features_norm * reconstruction).sum(dim=1)).mean()
 
     def codebook_anchor_loss(self):
-        """Allow adaptation while preventing codebook collapse and drift."""
+
         centers = F.normalize(self.prototype_codebook.float(), dim=1)
         centers_init = F.normalize(self.initial_prototype_codebook.float(), dim=1)
         return (1.0 - (centers * centers_init).sum(dim=1)).mean()
 
     @staticmethod
     def compute_slide_prototype_profile(assign):
-        """WSI vector [C]: prototype proportions, non-negative and sums to one."""
+
         return assign.mean(dim=0)
 
     def forward(self, features, task_logits, target_keep_ratio=None):

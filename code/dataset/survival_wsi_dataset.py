@@ -5,7 +5,7 @@ from .merge_patch_wsi_dataset import PCPSSelectedWSIDataset, PatchWsiDataModule
 
 
 class PCPSSurvivalWSIDataset(PCPSSelectedWSIDataset):
-    """WSI-level survival dataset using the existing PCPS image sampler."""
+
 
     def __getitem__(self, index):
         tiles, _, prototype_ids, wsi_id = super().__getitem__(index)

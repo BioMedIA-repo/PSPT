@@ -1,4 +1,3 @@
-"""Individual patch PNG reader with the recovered RGB and [0,1] convention."""
 from pathlib import Path
 
 import cv2

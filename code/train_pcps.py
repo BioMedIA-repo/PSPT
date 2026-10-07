@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-"""Offline training for Prototype-Calibrated Patch Sampling (PCPS)."""
-
 import argparse
 import json
 import os
@@ -22,8 +19,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from network.pcps import PrototypeCalibratedPatchSampling
 
 
+
 def load_fold_data(split_csv, feature_dir, fold):
-    """Load train/validation/test features without crossing fold boundaries."""
+
     df = pd.read_csv(split_csv)
     train_ids = df[df["fold"] > 0]["wsi_id"].tolist()
     val_ids = df[df["fold"] == 0]["wsi_id"].tolist()
@@ -45,12 +43,7 @@ def load_fold_data(split_csv, feature_dir, fold):
 
 
 class PCPSTaskHead(nn.Module):
-    """ABMIL head supervised through the PCPS variational mask.
 
-    PCPS trains its posterior through this differentiable keep-mask gate. At
-    export time, the posterior is the sole patch-selection score; ungated ABMIL
-    attention is retained only as a diagnostic and comparison signal.
-    """
 
     def __init__(self, in_dim, num_classes, hidden_dim=256, attn_dim=128, dropout=0.25):
         super().__init__()
@@ -70,11 +63,11 @@ class PCPSTaskHead(nn.Module):
         return h, raw
 
     def compute_patch_evidence(self, features):
-        """Return encoded patches and the shared task-evidence logits."""
+
         return self._attention_raw(features)
 
     def aggregate_with_mask(self, encoded_features, raw, mask):
-        """Classify a bag using the variational gate over shared evidence."""
+
         gate = mask.reshape(-1).float().clamp_min(1e-6)
         attn = torch.softmax(raw + gate.log(), dim=0)
         bag = torch.sum(attn.unsqueeze(1) * encoded_features, dim=0)
@@ -155,8 +148,7 @@ def train_one_fold(train_wsis, val_wsis, args, fold, device):
         classifier.load_state_dict(state_dict, strict=True)
         print(f"Initialized PCPS task branch from {args.task_head_init}")
 
-    # H uses a smaller learning rate and no weight decay. It remains trainable,
-    # but morphology/anchor losses keep it close to meaningful K-means regions.
+
     selector_main_params = [
         p for name, p in selector.named_parameters() if name != "prototype_codebook"
     ]
@@ -351,10 +343,8 @@ def export_pcps_outputs(selector, classifier, all_wsis, args, output_dir, fold, 
             assign = out["prototype_assignment"]
             prior = out["prototype_prior"]
             post = out["task_relevance_posterior"]
-            # PCPS has one deterministic selector at export time: the
-            # morphology-calibrated posterior q_i.  ABMIL remains the
-            # slide-level task head that trains q_i through the reparameterized
-            # Concrete gate, but its ungated attention is diagnostic only.
+
+
             attention = classifier.attention_scores(feats)
             selection_score = post.squeeze(1)
             k = min(args.selected_count, selection_score.shape[0])
@@ -444,9 +434,9 @@ def main():
     parser.add_argument("--feature_dir", type=str, required=True)
     parser.add_argument("--output_dir", type=str, required=True)
     parser.add_argument("--fold", type=int, default=None)
-    parser.add_argument("--epochs", type=int, default=15)
-    parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--weight_decay", type=float, default=1e-4)
+    parser.add_argument("--epochs", type=int, default=10)
+    parser.add_argument("--lr", type=float, default=0.0001)
+    parser.add_argument("--weight_decay", type=float, default=0.0001)
     parser.add_argument("--calibration-weight", type=float, default=0.1)
     parser.add_argument("--prototype-reputation-weight", type=float, default=0.1)
     parser.add_argument("--reputation-separation-weight", type=float, default=0.0,
@@ -455,8 +445,8 @@ def main():
                         help="Deprecated compatibility argument; not used.")
     parser.add_argument("--reputation-jitter-std", type=float, default=0.15)
     parser.add_argument("--reputation-contrast", type=float, default=0.75)
-    parser.add_argument("--prototype-calibration-max", type=float, default=0.5)
-    parser.add_argument("--prototype-calibration-init", type=float, default=0.1)
+    parser.add_argument("--prototype-calibration-max", type=float, default=0.3)
+    parser.add_argument("--prototype-calibration-init", type=float, default=0.15)
     parser.add_argument("--task-head-init", type=str, default=None)
     parser.add_argument("--task-warmup-epochs", type=int, default=0)
     parser.add_argument("--task-lr-factor", type=float, default=1.0)
@@ -464,8 +454,9 @@ def main():
     parser.add_argument("--codebook-compactness-weight", type=float, default=0.1)
     parser.add_argument("--codebook-anchor-weight", type=float, default=0.01)
     parser.add_argument("--codebook-lr-factor", type=float, default=0.1)
-    parser.add_argument("--gradient-clip", type=float, default=1.0)
-    parser.add_argument("--selected-count", type=int, default=384)
+    parser.add_argument("--gradient-clip", type=float, default=5.0)
+    parser.add_argument("--selected-count", type=int, default=1024,
+                        help="May be set to 256 to match M; usually has little effect. Keeping the default is also acceptable.")
     parser.add_argument("--prototype-count", type=int, default=16)
     parser.add_argument("--feature-dim", type=int, default=None,
                         help="Deprecated; feature dimension is inferred from loaded .pt files")
@@ -476,7 +467,7 @@ def main():
     parser.add_argument("--initial-reputation", type=float, default=0.3)
     parser.add_argument("--concrete-temperature", type=float, default=0.1)
     parser.add_argument("--mask-samples", type=int, default=10)
-    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
 
     torch.manual_seed(args.seed)

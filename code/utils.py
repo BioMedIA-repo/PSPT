@@ -1,4 +1,3 @@
-"""Minimal runtime parameter/tensor helpers."""
 import json
 import os
 import torch

@@ -13,9 +13,9 @@ def Top1_Hard_SVM(labels, alpha=1.):
         else:
             labels_de = labels
 
-        # max oracle
+
         max_, _ = (x + delta(y, labels_de, alpha)).max(1)
-        # subtract ground truth
+
         loss = max_ - x.gather(1, y[:, None]).squeeze()
         return loss
     return fun
@@ -44,15 +44,15 @@ def Topk_Hard_SVM(labels, k, alpha=1.):
 
 def Top1_Smooth_SVM(labels, tau, alpha=1.):
     def fun(x, y):
-        # add loss term and subtract ground truth score
+
         if labels.device != y.device:
             labels_de = labels.to(y.device)
         else:
             labels_de = labels
-        # print("in functional: Top1_Smooth_SVM:", y.device, labels_de.device)
-        # print(x.shape, delta(y, labels_de, alpha).shape, x.gather(1, y[:, None]).shape)
+
+
         x = x + delta(y, labels_de, alpha) - x.gather(1, y[:, None])
-        # compute loss
+
         loss = tau * log_sum_exp(x / tau)
 
         return loss
@@ -69,12 +69,11 @@ def Topk_Smooth_SVM(labels, k, tau, alpha=1.):
         else:
             labels_de = labels
         x_1, x_2 = split(x, y, labels_de)
-        # all scores are divided by (k * tau)
+
         x_1.div_(k * tau)
         x_2.div_(k * tau)
 
-        # term 1: all terms that will *not* include the ground truth score
-        # term 2: all terms that will include the ground truth score
+
         res = lsp(x_1)
         term_1, term_2 = res[1], res[0]
         term_1, term_2 = LogTensor(term_1), LogTensor(term_2)

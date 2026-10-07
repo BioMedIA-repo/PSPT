@@ -5,7 +5,7 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 
-# Compatibility shim for PyTorch 2.5/2.6 to allow loading Lightning-saved hyperparameters
+
 if hasattr(torch.serialization, 'add_safe_globals'):
     torch.serialization.add_safe_globals([argparse.Namespace])
 torch.set_float32_matmul_precision('medium')
@@ -113,7 +113,7 @@ def save_test_results_to_csv(args, test_results):
     if not test_results:
         return
     res_dict = test_results[0]
-    
+
     save_dict = {
         "dataset": args.dataset_name,
         "run_name": args.run_name,
@@ -124,13 +124,13 @@ def save_test_results_to_csv(args, test_results):
         "transfer_type": args.transfer_type
     }
     save_dict.update(res_dict)
-    
+
     df = pd.DataFrame([save_dict])
-    
+
     csv_dir = os.path.join(args.output_dir, args.run_name)
     os.makedirs(csv_dir, exist_ok=True)
     csv_path = os.path.join(csv_dir, "all_experiments_results.csv")
-    
+
     if os.path.exists(csv_path):
         df.to_csv(csv_path, mode='a', header=False, index=False)
     else:
@@ -145,8 +145,8 @@ def main(args):
 
     classes_names = get_class_names(args.dataset_name)
     data_module = PatchWsiDataModule(args.dataset_root, args.dataset_csv, classes_names=classes_names,
-                                     val_fold=args.val_fold, 
-                                     num_workers=args.num_workers, 
+                                     val_fold=args.val_fold,
+                                     num_workers=args.num_workers,
                                      num_workers_eval=args.num_workers_eval,
                                      drop_out=args.dropout_inst, weighted_sample=args.weighted_sample,
                                      pcps_selection_path=args.pcps_selection_path,
@@ -198,7 +198,7 @@ def main(args):
 
     trainer.fit(trainer_model, data_module)
     verify_optimizer_updates(trainer, trainer_model, args)
-    
+
     best_model_path = checkpoint_callback.best_model_path
     if trainer.is_global_zero:
         print(f"\n" + "="*50)
@@ -208,7 +208,7 @@ def main(args):
     if len(args.gpu_id) > 1:
         torch.distributed.destroy_process_group()
         if trainer.is_global_zero:
-            trainer_test = pl.Trainer(default_root_dir=os.path.join(args.output_dir, args.run_name), 
+            trainer_test = pl.Trainer(default_root_dir=os.path.join(args.output_dir, args.run_name),
                                  num_sanity_val_steps=0, logger=logger,
                                  accelerator="gpu", devices=[args.gpu_id[0]], )
             test_results = trainer_test.test(trainer_model, data_module, ckpt_path=best_model_path)
@@ -220,7 +220,7 @@ def main(args):
 
 
 def add_argument_fun(parser):
-    parser.add_argument("--clam-size", type=lambda s: [int(item) for item in s.split(',')], default=[192, 128, 128],
+    parser.add_argument("--clam-size", type=lambda s: [int(item) for item in s.split(',')], default=[1024, 256, 128],
                         help="Choose the number of samples")
     return parser
 

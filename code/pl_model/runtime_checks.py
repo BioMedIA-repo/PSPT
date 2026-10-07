@@ -1,4 +1,3 @@
-"""Verify actual optimizer updates, independently of Lightning step counters."""
 import json
 from pathlib import Path
 

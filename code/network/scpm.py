@@ -5,12 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class SlideAwareCrossLayerPromptModulation(nn.Module):
-    """Slide-Aware Cross-Layer Prompt Modulation (paper Section 3.3).
 
-    Every image chunk of one sampled WSI shares a detached pre-block token
-    context at layer zero. Later transformer layers retain memory-bounded local
-    observations and correct a depth-wise latent state independently per chunk.
-    """
 
     def __init__(
         self,
@@ -48,7 +43,7 @@ class SlideAwareCrossLayerPromptModulation(nn.Module):
         self.reset_state()
 
     def set_wsi_initial_context(self, context):
-        """Cache one detached token-space context shared by all chunks of a WSI."""
+
         self._wsi_initial_context = context.detach()
 
     def clear_wsi_initial_context(self):
@@ -60,9 +55,8 @@ class SlideAwareCrossLayerPromptModulation(nn.Module):
         self._residuals = []
         self._context_norms = []
         self._corrections = []
-        # transition_delta is unchanged within one chunk forward. Cache its
-        # matrix exponential for this chunk and invalidate it at the next
-        # reset, so no detached no-grad value leaks into gradient recomputation.
+
+
         self._transition_fp32 = None
         self._transition_generator_fp32 = None
 
@@ -102,8 +96,7 @@ class SlideAwareCrossLayerPromptModulation(nn.Module):
         strength = self.prompt_residual_max * torch.sigmoid(self.residual_logits[layer_idx])
         residual = strength.to(dtype=residual.dtype) * residual
 
-        # Keep the live tensors so regularization_loss() remains differentiable.
-        # Diagnostics detach only when they are finalized below.
+
         self._states.append(state)
         self._residuals.append(residual)
         self._context_norms.append(context.detach().float().norm())

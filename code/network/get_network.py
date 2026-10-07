@@ -1,6 +1,3 @@
-"""PSPT-only encoder construction; no optional baseline imports."""
-
-
 def set_transfer_type(model, transfer_type):
     if transfer_type != 'pspt':
         raise ValueError('This compact training distribution supports transfer_type=pspt')

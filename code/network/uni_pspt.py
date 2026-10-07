@@ -6,11 +6,7 @@ from .pspt_core import SlideAwareCrossLayerPromptModulation
 
 
 class PSPTBackbone(nn.Module):
-    """UNI VPT-Deep with layer-wise SCPM prompts and FPRD.
 
-    SCPM shares a sampled-WSI token initialization across memory-bounded image
-    chunks, then applies layer-wise local corrections within each chunk.
-    """
 
     def __init__(
         self,
@@ -69,7 +65,7 @@ class PSPTBackbone(nn.Module):
 
     @torch.no_grad()
     def compute_wsi_initial_token_context(self, data_chunks):
-        """Streaming mean of pre-block patch tokens over the sampled WSI bag."""
+
         token_sum = None
         token_count = 0
         for data_i in data_chunks:

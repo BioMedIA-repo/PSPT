@@ -1,14 +1,10 @@
-"""Fidelity-Preserving Residual Diffusion (paper Section 3.4, Eq. 14–18)."""
 import torch
 import torch.nn.functional as F
 
 
 def apply_fprd(backbone, features):
-    """Detached semantic k-NN graph and differentiable source-preserving steps.
 
-    The single learnable diffusion-time parameter remains owned by the
-    backbone, preserving state_dict structure apart from the naming change.
-    """
+
     if not backbone.fprd_enabled or features.shape[0] <= 1:
         return features
     k = min(backbone.fprd_neighbors, features.shape[0] - 1)

@@ -1,80 +1,67 @@
 # PSPT
 
-Code for **PSPT: Patch-Efficient Slide-Aware Prompt Tuning for
-End-to-End Whole-Slide Learning**.
+Code for the paper **PSPT: Patch-Efficient Slide-Aware Prompt Tuning for End-to-End Whole-Slide Learning**.
+
+
 
 ## Installation
 
 ```bash
-conda create -n pspt python=3.10 -y
-conda activate pspt
+sudo apt-get install libopenslide0
 pip install -r requirements.txt
-pip install -e .
 ```
 
-CONCH additionally requires the official CONCH v1 package and checkpoint.
-OpenSlide also requires the system OpenSlide library.
+## Workflow
 
-Model weights: https://drive.google.com/drive/folders/1mokCWTtSlyaMBWqT3MJrzMDTo3Zsno48?usp=sharing
+BRACS uses the fixed official split. Run K random seeds on this same split
+(K=5 below); `--fold` selects the online training seed, not a new partition.
 
-More code details will be updated after the paper is accepted.
-
-## Patch extraction
-
-Extract patches from the original slides using the provided coordinate H5
-files:
+### Segment tissue and export patches
 
 ```bash
-python preprocessing/extract_scatter_png.py \
-  --svs_dir /path/to/slides \
-  --h5_dir /path/to/coordinate_h5 \
-  --output_dir /path/to/patch_root \
-  --patch_size 256 \
-  --num_workers 8
+python run.py patches --wsi-dir /data/BRACS --data-dir work/BRACS
 ```
 
-The H5 coordinate order must match the PCPS score files.
-
-The generated directory is:
-
-```text
-patch_root/
-└── WSI_ID/
-    ├── WSI_ID_patch_0.png
-    ├── WSI_ID_patch_1.png
-    └── ...
-```
-
-## Evaluation
-
-UNI:
+### Extract frozen patch features
 
 ```bash
-python -m pspt.evaluate \
-  --checkpoint /path/to/UNI_M256_model000.pt \
-  --split-csv /path/to/bright3_label.csv \
-  --scatter-png-dir /path/to/patch_root \
-  --pcps-scores /path/to/UNI_pcps_scores_fold0.pt \
-  --output-dir outputs/uni_model000
+python run.py features --encoder-weights /models/UNI/pytorch_model.bin --data-dir work/BRACS
 ```
 
-CONCH:
+### Train the PCPS selector
 
 ```bash
-python -m pspt.evaluate \
-  --checkpoint /path/to/CONCH_M256_model000.pt \
-  --split-csv /path/to/bright3_label.csv \
-  --scatter-png-dir /path/to/patch_root \
-  --pcps-scores /path/to/CONCH_pcps_scores_fold0.pt \
-  --conch-backbone-checkpoint /path/to/conch_v1_checkpoint.bin \
-  --output-dir outputs/conch_model000
+python run.py pcps --data-dir work/BRACS --output-dir outputs/bracs_uni --fold 0
 ```
 
-To evaluate all released checkpoints:
+### Train and evaluate PSPT
 
 ```bash
-PSPT_MODEL_PACKAGE=/path/to/PSPT_PUBLIC_WEIGHTS_BRACS_20260727 \
-BRACS_PATCH_DIR=/path/to/patch_root \
-OUTPUT_DIR=/path/to/outputs \
-bash scripts/reproduce_bracs_all.sh
+python run.py train --encoder-weights /models/UNI/pytorch_model.bin --data-dir work/BRACS --output-dir outputs/bracs_uni --fold 0
 ```
+
+### Run the remaining four seeds
+
+```bash
+for fold in 1 2 3 4; do
+  python run.py pcps --data-dir work/BRACS --output-dir outputs/bracs_uni --fold $fold
+  python run.py train --encoder-weights /models/UNI/pytorch_model.bin --data-dir work/BRACS --output-dir outputs/bracs_uni --fold $fold
+done
+```
+
+## Other workflows
+
+Follow BRACS; replace task and paths:
+
+- COAD: `--task COAD`, `/data/COAD`, `work/COAD`, `outputs/coad_uni`.
+- LUAD: `--task LUAD`, `/data/LUAD`, `work/LUAD`, `outputs/luad_uni`.
+
+COAD and LUAD use five patient-level Monte Carlo partitions, selected by `--fold`
+from `splits/coad` and `splits/luad`.
+CONCH and PLIP follow the same workflow: set `--encoder CONCH` or `--encoder PLIP`.
+
+
+
+
+
+Model weights: [https://drive.google.com/drive/folders/1mokCWTtSlyaMBWqT3MJrzMDTo3Zsno48?usp=sharing](https://drive.google.com/drive/folders/1mokCWTtSlyaMBWqT3MJrzMDTo3Zsno48?usp=sharing)

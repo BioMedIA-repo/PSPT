@@ -78,14 +78,12 @@ class MilE2EModule(NativePatchMixin, pl.LightningModule):
         if train:
             self.manual_backward(loss * loss_scale)
             if not self.freeze_backbone:
-                self._log_gradient_distribution('head_side', features.grad)
-                self._log_gradient_distribution('backbone_side', raw_features.grad)
                 self.backbone_backward(data, raw_features)
             self._log_scpm_fprd_diagnostics(diffusion_time)
         return bag_prediction, loss, y_prob
 
     def _prepare_wsi_prompt_context(self, data):
-        """Build one sampled-WSI token context and reuse it for every chunk/recompute."""
+
         if not getattr(self.backbone, 'scpm_enabled', True):
             return
         scpm = getattr(self.backbone, 'scpm', None)
@@ -133,25 +131,6 @@ class MilE2EModule(NativePatchMixin, pl.LightningModule):
             self.log('train/fprd_neighbor_similarity',
                      self.backbone.last_fprd_neighbor_similarity.float(),
                      on_step=True, on_epoch=True, sync_dist=True)
-
-    def _log_gradient_distribution(self, name, gradient):
-        if gradient is None:
-            return
-        magnitude = gradient.detach().float().norm(dim=1)
-        total = magnitude.sum().clamp_min(1e-12)
-        probability = magnitude / total
-        entropy = -(probability * probability.clamp_min(1e-12).log()).sum()
-        effective_ratio = entropy.exp() / max(1, magnitude.numel())
-        top_count = max(1, int(0.1 * magnitude.numel()))
-        top_mass = magnitude.topk(top_count).values.sum() / total
-        relative_threshold = magnitude.max() * 1e-6
-        coverage = (magnitude > relative_threshold).float().mean()
-        self.log(f'train/gradient_{name}_effective_ratio', effective_ratio,
-                 on_step=True, on_epoch=True, sync_dist=True)
-        self.log(f'train/gradient_{name}_top10_mass', top_mass,
-                 on_step=True, on_epoch=True, sync_dist=True)
-        self.log(f'train/gradient_{name}_coverage', coverage,
-                 on_step=True, on_epoch=True, sync_dist=True)
 
     def backbone_forward(self, data):
         features = []

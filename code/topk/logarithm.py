@@ -5,12 +5,8 @@ from numbers import Number
 
 
 def log(x, like):
-    """
-    Get log-value of x.
-    If x is a LogTensor, simply access its stored data
-    If x is a Number, transform it to a tensor / variable,
-    in the log space, with the same type and size as like.
-    """
+
+
     if isinstance(x, LogTensor):
         return x.torch()
 
@@ -19,8 +15,7 @@ def log(x, like):
                         'was expected LogTensor or Number'
                         .format(type(x)))
 
-    # transform x to variable / tensor of
-    # same type and size as like
+
     like_is_var = isinstance(like, ag.Variable)
     data = like.data if like_is_var else like
     new = data.new(1).fill_(x).log_().expand_as(data)
@@ -48,10 +43,8 @@ def _add_outofplace(x1, x2):
 
 
 class LogTensor(object):
-    """
-    Stable log-representation for torch tensors
-    _x stores the value in the log space
-    """
+
+
     def __init__(self, x):
         super(LogTensor, self).__init__()
 
@@ -75,16 +68,13 @@ class LogTensor(object):
         return self
 
     def __radd__(self, other):
-        """
-        Addition is commutative.
-        """
+
+
         return self.__add__(other)
 
     def __sub__(self, other):
-        """
-        NB: assumes self - other > 0.
-        Will return nan otherwise.
-        """
+
+
         other_x = log(other, like=self._x)
         diff = other_x - self._x
         x = self._x + log1mexp(diff)
@@ -99,29 +89,25 @@ class LogTensor(object):
         return LogTensor(x)
 
     def __rmul__(self, other):
-        """
-        Multiplication is commutative.
-        """
+
+
         return self.__mul__(other)
 
     def __div__(self, other):
-        """
-        Division (python 2)
-        """
+
+
         other_x = log(other, like=self._x)
         x = self._x - other_x
         return LogTensor(x)
 
     def __truediv__(self, other):
-        """
-        Division (python 3)
-        """
+
+
         return self.__div__(other)
 
     def torch(self):
-        """
-        Returns value of tensor in torch format (either variable or tensor)
-        """
+
+
         return self._x
 
     def __repr__(self):
@@ -131,13 +117,11 @@ class LogTensor(object):
 
 
 def log1mexp(U, eps=1e-3):
-    """
-    Compute log(1 - exp(u)) for u <= 0.
-    """
+
+
     res = torch.log1p(-torch.exp(U))
 
-    # |U| << 1 requires care for numerical stability:
-    # 1 - exp(U) = -U + o(U)
+
     small = torch.lt(U.abs(), eps)
     res[small] = torch.log(-U[small])
 
