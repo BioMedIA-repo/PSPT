@@ -141,15 +141,5 @@ class SlideAwareCrossLayerPromptModulation(nn.Module):
             (transition.float().T @ transition.float()) - (self.transition_rho ** 2) * identity
         ).norm().detach() / self.latent_dim
 
-    def regularization_loss(self):
-        loss = self.transition_delta.new_tensor(0.0)
-        if self._residuals:
-            residuals = torch.stack(self._residuals, dim=0)
-            loss = loss + 1e-4 * residuals.float().square().mean()
-        if self._states and len(self._states) > 1:
-            states = torch.cat(self._states, dim=0).flatten(start_dim=1)
-            flow = 1.0 - F.cosine_similarity(states[1:], states[:-1], dim=1)
-            loss = loss + 1e-2 * flow.mean()
-        return loss
 
 SCPM = SlideAwareCrossLayerPromptModulation

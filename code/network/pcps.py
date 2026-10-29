@@ -168,19 +168,11 @@ class PrototypeCalibratedPatchSampling(nn.Module):
         loss = self.bernoulli_kl(cluster_task, rho_prob, self.probability_epsilon)
         return loss, cluster_task
 
-    def selection_budget_loss(self, post, target_keep_ratio):
+    @staticmethod
+    def budget_residual(post, target_keep_ratio):
+        """Signed expected-patch-count error; diagnostic only, never a loss."""
         target = post.new_tensor(float(target_keep_ratio)).clamp(0.0, 1.0)
-        return (post.mean() - target).square()
-
-    def prototype_reputation_separation_loss(self):
-
-        rho_prob = self.compute_prototype_reputation().squeeze(1)
-        return -rho_prob.var(unbiased=False)
-
-    def prototype_reputation_bimodal_loss(self):
-
-        rho_prob = self.compute_prototype_reputation().squeeze(1)
-        return (rho_prob * (1.0 - rho_prob)).mean()
+        return (post.detach().sum() - target * post.numel()).detach()
 
     def codebook_compactness_loss(self, features, assign):
 
@@ -222,7 +214,7 @@ class PrototypeCalibratedPatchSampling(nn.Module):
             "prototype_assignment": assign,
             "prototype_calibration_divergence": consistency,
             "prototype_reputation_loss": rho_loss,
-            "selection_budget_loss": self.selection_budget_loss(post, target_keep_ratio),
+            "budget_residual": self.budget_residual(post, target_keep_ratio),
             "codebook_compactness_loss": self.codebook_compactness_loss(features, assign),
             "codebook_anchor_loss": self.codebook_anchor_loss(),
             "prototype_task_relevance": cluster_task,

@@ -122,11 +122,6 @@ class PLIP_PSPT(nn.Module, PSPTCoreMixin):
         residual = self.scpm(tokens, layer_idx, patch_start)
         return base + residual
 
-    def get_scpm_regularization(self):
-        if not self.scpm_enabled:
-            return self.prompt_embeddings.new_tensor(0.0)
-        return self.scpm.regularization_loss()
-
     @torch.no_grad()
     def compute_wsi_initial_token_context(self, data_chunks):
 

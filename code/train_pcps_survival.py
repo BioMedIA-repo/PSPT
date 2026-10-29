@@ -1,3 +1,4 @@
+from legacy_loss_options import RemovedLossWeight
 import argparse
 import json
 import os
@@ -231,7 +232,7 @@ def train_one_fold(train_wsis, val_wsis, test_wsis, args, fold, device):
     for epoch in range(args.epochs):
         selector.train()
         classifier.train()
-        totals = {"loss": 0.0, "nll": 0.0, "cons": 0.0, "rho": 0.0, "budget": 0.0, "morph": 0.0, "anchor": 0.0}
+        totals = {"loss": 0.0, "nll": 0.0, "cons": 0.0, "rho": 0.0, "budget_abs_residual": 0.0, "budget_max_abs_residual": 0.0, "morph": 0.0, "anchor": 0.0}
         events, times, risks = [], [], []
         for idx in np.random.permutation(len(train_wsis)):
             item = train_wsis[idx]
@@ -251,7 +252,6 @@ def train_one_fold(train_wsis, val_wsis, test_wsis, args, fold, device):
                 nll
                 + args.calibration_weight * out["prototype_calibration_divergence"]
                 + args.prototype_reputation_weight * out["prototype_reputation_loss"]
-                + args.selection_budget_weight * out["selection_budget_loss"]
                 + args.codebook_compactness_weight * out["codebook_compactness_loss"]
                 + args.codebook_anchor_weight * out["codebook_anchor_loss"]
             )
@@ -265,7 +265,9 @@ def train_one_fold(train_wsis, val_wsis, test_wsis, args, fold, device):
             totals["nll"] += nll.item()
             totals["cons"] += out["prototype_calibration_divergence"].item()
             totals["rho"] += out["prototype_reputation_loss"].item()
-            totals["budget"] += out["selection_budget_loss"].item()
+            budget_error = abs(out["budget_residual"].item())
+            totals["budget_abs_residual"] += budget_error
+            totals["budget_max_abs_residual"] = max(totals["budget_max_abs_residual"], budget_error)
             totals["morph"] += out["codebook_compactness_loss"].item()
             totals["anchor"] += out["codebook_anchor_loss"].item()
             events.append(item["event"])
@@ -321,13 +323,14 @@ def train_one_fold(train_wsis, val_wsis, test_wsis, args, fold, device):
             "prototype_calibration_strength": float(selector.compute_prototype_calibration_strength().detach().cpu()),
         }
         record.update({f"train_{key}": value / n_train for key, value in totals.items()})
+        record["train_budget_max_abs_residual"] = totals["budget_max_abs_residual"]
         history.append(record)
         print(
             f"Fold {fold} Epoch {epoch + 1}/{args.epochs}: "
             f"Loss={record['train_loss']:.4f} NLL={record['train_nll']:.4f} "
             f"TrainC={train_cindex:.4f} ValLoss={val_loss:.4f} ValC={val_cindex:.4f} "
             f"TestLoss={record['test_loss']:.4f} TestC={record['test_cindex']:.4f} "
-            f"Budget={record['train_budget']:.4f} "
+            f"BudgetAbs(mean/max)={record['train_budget_abs_residual']:.6g}/{record['train_budget_max_abs_residual']:.6g} "
             f"Risk(val e/c={record['val_event_risk_mean']:.3f}/{record['val_censored_risk_mean']:.3f}, "
             f"test e/c={record['test_event_risk_mean']:.3f}/{record['test_censored_risk_mean']:.3f}) "
             f"reputation_prior={record['reputation_prior_mean']:.4f}+/-{record['reputation_prior_std']:.4f} "
@@ -489,7 +492,8 @@ def main():
     parser.add_argument("--prototype-calibration-max", type=float, default=0.5)
     parser.add_argument("--prototype-calibration-init", type=float, default=0.1)
     parser.add_argument("--task-lr-factor", type=float, default=0.5)
-    parser.add_argument("--selection-budget-weight", type=float, default=1.0)
+    parser.add_argument("--selection-budget-weight", action=RemovedLossWeight, default=0.0,
+                        help="Removed loss; explicit 0 accepted with a warning, nonzero rejected.")
     parser.add_argument("--codebook-compactness-weight", type=float, default=0.1)
     parser.add_argument("--codebook-anchor-weight", type=float, default=0.05)
     parser.add_argument("--codebook-lr-factor", type=float, default=0.1)

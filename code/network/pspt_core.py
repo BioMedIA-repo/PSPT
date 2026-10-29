@@ -63,13 +63,6 @@ class PSPTCoreMixin:
         residual = self.scpm(tokens, layer_idx, patch_start)
         return base + residual
 
-    def get_scpm_regularization(self):
-        if not getattr(self, 'scpm_enabled', True):
-            return self.prompt_embeddings.new_tensor(0.0)
-        if hasattr(self, 'scpm'):
-            return self.scpm.regularization_loss()
-        return self.prompt_embeddings.new_tensor(0.0)
-
     def compute_diffusion_time(self):
         return self.fprd_time_max * torch.sigmoid(self.fprd_time_logit)
 

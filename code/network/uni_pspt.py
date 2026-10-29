@@ -92,11 +92,6 @@ class PSPTBackbone(nn.Module):
         residual = self.scpm(tokens, layer_idx, patch_start)
         return base + residual
 
-    def get_scpm_regularization(self):
-        if not self.scpm_enabled:
-            return self.prompt_embeddings.new_tensor(0.0)
-        return self.scpm.regularization_loss()
-
     def compute_diffusion_time(self):
         return self.fprd_time_max * torch.sigmoid(self.fprd_time_logit)
 

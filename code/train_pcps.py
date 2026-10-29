@@ -1,3 +1,4 @@
+from legacy_loss_options import RemovedLossWeight
 import argparse
 import json
 import os
@@ -194,7 +195,7 @@ def train_one_fold(train_wsis, val_wsis, args, fold, device):
             "ce": 0.0,
             "cons": 0.0,
             "rho": 0.0,
-            "budget": 0.0,
+            "budget_abs_residual": 0.0, "budget_max_abs_residual": 0.0,
             "morph": 0.0,
             "anchor": 0.0,
         }
@@ -218,7 +219,6 @@ def train_one_fold(train_wsis, val_wsis, args, fold, device):
                 ce
                 + args.calibration_weight * out["prototype_calibration_divergence"]
                 + args.prototype_reputation_weight * out["prototype_reputation_loss"]
-                + args.selection_budget_weight * out["selection_budget_loss"]
                 + args.codebook_compactness_weight * out["codebook_compactness_loss"]
                 + args.codebook_anchor_weight * out["codebook_anchor_loss"]
             )
@@ -233,7 +233,9 @@ def train_one_fold(train_wsis, val_wsis, args, fold, device):
             totals["ce"] += ce.item()
             totals["cons"] += out["prototype_calibration_divergence"].item()
             totals["rho"] += out["prototype_reputation_loss"].item()
-            totals["budget"] += out["selection_budget_loss"].item()
+            budget_error = abs(out["budget_residual"].item())
+            totals["budget_abs_residual"] += budget_error
+            totals["budget_max_abs_residual"] = max(totals["budget_max_abs_residual"], budget_error)
             totals["morph"] += out["codebook_compactness_loss"].item()
             totals["anchor"] += out["codebook_anchor_loss"].item()
             train_correct += int(logits.argmax(dim=1).item() == label)
@@ -293,11 +295,12 @@ def train_one_fold(train_wsis, val_wsis, args, fold, device):
             ),
         }
         record.update({f"train_{k}": v / n_train for k, v in totals.items()})
+        record["train_budget_max_abs_residual"] = totals["budget_max_abs_residual"]
         history.append(record)
         print(
             f"Fold {fold} Epoch {epoch + 1}/{args.epochs}: "
             f"Loss={record['train_loss']:.4f} CE={record['train_ce']:.4f} "
-            f"KL={record['train_cons']:.4f} Budget={record['train_budget']:.4f} "
+            f"KL={record['train_cons']:.4f} BudgetAbs(mean/max)={record['train_budget_abs_residual']:.6g}/{record['train_budget_max_abs_residual']:.6g} "
             f"TrainAcc={record['train_acc']:.4f} TrainAUC={train_auc:.4f} "
             f"ValAcc={val_acc:.4f} ValAUC={val_auc:.4f} | "
             f"reputation_prior={record['reputation_prior_mean']:.4f}+/-{record['reputation_prior_std']:.4f} "
@@ -439,10 +442,10 @@ def main():
     parser.add_argument("--weight_decay", type=float, default=0.0001)
     parser.add_argument("--calibration-weight", type=float, default=0.1)
     parser.add_argument("--prototype-reputation-weight", type=float, default=0.1)
-    parser.add_argument("--reputation-separation-weight", type=float, default=0.0,
-                        help="Deprecated compatibility argument; not used.")
-    parser.add_argument("--reputation-bimodal-weight", type=float, default=0.0,
-                        help="Deprecated compatibility argument; not used.")
+    parser.add_argument("--reputation-separation-weight", action=RemovedLossWeight, default=0.0,
+                        help="Removed loss; explicit 0 accepted with a warning, nonzero rejected.")
+    parser.add_argument("--reputation-bimodal-weight", action=RemovedLossWeight, default=0.0,
+                        help="Removed loss; explicit 0 accepted with a warning, nonzero rejected.")
     parser.add_argument("--reputation-jitter-std", type=float, default=0.15)
     parser.add_argument("--reputation-contrast", type=float, default=0.75)
     parser.add_argument("--prototype-calibration-max", type=float, default=0.3)
@@ -450,7 +453,8 @@ def main():
     parser.add_argument("--task-head-init", type=str, default=None)
     parser.add_argument("--task-warmup-epochs", type=int, default=0)
     parser.add_argument("--task-lr-factor", type=float, default=1.0)
-    parser.add_argument("--selection-budget-weight", type=float, default=1.0)
+    parser.add_argument("--selection-budget-weight", action=RemovedLossWeight, default=0.0,
+                        help="Removed loss; explicit 0 accepted with a warning, nonzero rejected.")
     parser.add_argument("--codebook-compactness-weight", type=float, default=0.1)
     parser.add_argument("--codebook-anchor-weight", type=float, default=0.01)
     parser.add_argument("--codebook-lr-factor", type=float, default=0.1)
