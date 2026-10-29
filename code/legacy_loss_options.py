@@ -1,4 +1,3 @@
-"""Compatibility checks for removed loss-weight command-line options."""
 import argparse
 import warnings
 

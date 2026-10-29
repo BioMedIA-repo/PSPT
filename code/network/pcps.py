@@ -170,7 +170,6 @@ class PrototypeCalibratedPatchSampling(nn.Module):
 
     @staticmethod
     def budget_residual(post, target_keep_ratio):
-        """Signed expected-patch-count error; diagnostic only, never a loss."""
         target = post.new_tensor(float(target_keep_ratio)).clamp(0.0, 1.0)
         return (post.detach().sum() - target * post.numel()).detach()
 

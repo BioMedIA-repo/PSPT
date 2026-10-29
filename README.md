@@ -65,29 +65,3 @@ CONCH and PLIP follow the same workflow: set `--encoder CONCH` or `--encoder PLI
 
 
 Model weights: [https://drive.google.com/drive/folders/1mokCWTtSlyaMBWqT3MJrzMDTo3Zsno48?usp=sharing](https://drive.google.com/drive/folders/1mokCWTtSlyaMBWqT3MJrzMDTo3Zsno48?usp=sharing)
-
-## PCPS budget diagnostics
-
-The expected selection budget is enforced by per-WSI probability calibration.
-The redundant budget penalty is no longer included in either classification or
-survival PCPS training. Training history reports `train_budget_abs_residual`
-(mean absolute expected-patch-count error per WSI) and
-`train_budget_max_abs_residual` (maximum absolute error), in units of patches.
-These detached diagnostics are not optimized. Tiny residuals can remain because
-of floating-point arithmetic and probability clipping, including all-patch bags.
-
-Legacy `--selection-budget-weight 0` is accepted with a warning; nonzero values
-are rejected. The classification trainer applies the same policy to the removed
-`--reputation-separation-weight` and `--reputation-bimodal-weight` options.
-Remove these options from new commands. The unused reputation separation/bimodal
-and SCPM regularization methods have been removed. Model parameters and buffers
-are retained, so these removals do not change checkpoint state-dict keys.
-Compactness, anchoring, prior KL and reputation fitting remain in the objective.
-Historical runs retain their original training configuration; this cleanup does
-not establish unchanged downstream metrics.
-
-Run the CPU regression checks with PyTorch installed:
-
-```bash
-python -m unittest discover -s tests -v
-```
